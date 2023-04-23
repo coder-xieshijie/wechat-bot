@@ -13,7 +13,12 @@ const bot = WechatyBuilder.build({
     uos: true
   }
 });
-async function sendScheduledMessageToGroup(groupName: string, messageText: string, targetDate: Date) {
+// send group message
+async function sendScheduledMessageToGroup(
+  groupName: string,
+  messageText: string,
+  imgPath: string
+) {
   const targetGroup = await bot.Room.find({ topic: groupName });
 
   if (!targetGroup) {
@@ -22,18 +27,20 @@ async function sendScheduledMessageToGroup(groupName: string, messageText: strin
   }
 
   targetGroup.say(messageText);
-  const fileBox = FileBox.fromFile("/Users/xieshijie/Desktop/road.png");
+  const fileBox = FileBox.fromFile(imgPath);
   targetGroup.say(fileBox);
 }
 async function main() {
   const initializedAt = Date.now()
   const groupName = '猫猫测试群';
-  const messageText = '晚安，好梦！👀';
-  const targetDate = new Date(2023, 3, 21, 22, 36); // 注意：月份是从 0 开始的，所以这里使用 3 代表 4 月
+  const messageText = '📣千载难逢，历史机遇！\n🥁全员参战，势在必得！\n🏆目标不设限，收入大爆发！\n⏰首爆产品上线开闸倒计时1⃣小时！';
+  const targetDate = new Date(2023, 3, 21, 22, 53); // 注意：月份是从 0 开始的，所以这里使用 3 代表 4 月
+  const imgPath = "/Users/xieshijie/Desktop/WechatIMG10.jpeg";
 
   schedule.scheduleJob(targetDate, () => {
-    sendScheduledMessageToGroup(groupName, messageText, targetDate);
+    sendScheduledMessageToGroup(groupName, messageText, imgPath);
   });
+
   bot
     .on("scan", async (qrcode, status) => {
       const url = `https://wechaty.js.org/qrcode/${encodeURIComponent(qrcode)}`;
