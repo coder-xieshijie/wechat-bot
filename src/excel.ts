@@ -2,7 +2,6 @@ import fs from 'fs';
 import ExcelJS, { Row } from 'exceljs';
 import axios from 'axios';
 import sharp from 'sharp';
-import imageSize from 'image-size';
 
 
 async function readExcel(data: Buffer): Promise<void> {
@@ -35,31 +34,6 @@ async function readExcel(data: Buffer): Promise<void> {
                 console.error(`Error downloading image at row ${rowIndex}:`);
             }
         }
-    });
-}
-
-async function getImageBufferFromCell(workbook: ExcelJS.Workbook, cell: ExcelJS.Cell): Promise<Buffer | null> {
-    if (cell.type === ExcelJS.ValueType.Hyperlink) {
-        const imageId = (cell.value as ExcelJS.CellHyperlinkValue).hyperlink;
-        const media = workbook.model.media.find((m) => m.type === imageId);
-
-        if (media) {
-            return Buffer.from(media.buffer);
-        }
-    }
-
-    return null;
-}
-
-// 测试函数
-async function testReadExcel(filePath: string): Promise<void> {
-    fs.readFile(filePath, async (err, data) => {
-        if (err) {
-            console.error('Error reading file:', err);
-            return;
-        }
-
-        await readExcel(data);
     });
 }
 
