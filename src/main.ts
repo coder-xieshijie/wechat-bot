@@ -105,16 +105,35 @@ async function main() {
           const excelData = await readExcel(data); // 使用 readExcel 函数的返回值
           console.log(`excelData: ${excelData}`);
 
+          // for (const row of excelData) {
+          //   const { sendTime, sendText, imagePath } = row;
+          //   console.log(`sendTime: ${sendTime}, sendText: ${sendText}, imagePath: ${imagePath}`);
+          //   const targetDate = new Date(sendTime);
+
+          //   schedule.scheduleJob(targetDate, (() => {
+          //     return () => {
+          //       sendScheduledMessageToGroup(targetGroupName, sendText, imagePath);
+          //     };
+          //   })());
+          // }
+
           for (const row of excelData) {
             const { sendTime, sendText, imagePath } = row;
             console.log(`sendTime: ${sendTime}, sendText: ${sendText}, imagePath: ${imagePath}`);
-            const targetDate = new Date(sendTime);
-        
-            schedule.scheduleJob(targetDate, (() => {
-              return () => {
-                sendScheduledMessageToGroup(targetGroupName, sendText, imagePath);
-              };
-            })());
+            const targetDate = parseCustomDateString(sendTime);
+            const now = new Date();
+            const delay = targetDate.getTime() - now.getTime(); // 计算需要等待的毫秒数
+            // sleep for delay milliseconds
+            console.log(`当前时间: ${now}`)
+            console.log(`target时间: ${targetDate}`)
+            console.log(`等待 ${delay} 毫秒后发送`);
+            await new Promise((resolve) => setTimeout(resolve, delay - 10));
+
+            if (delay >= 0) {
+              sendScheduledMessageToGroup(targetGroupName, sendText, imagePath);
+            } else {
+              console.log(`发送时间已过，不发送: ${sendTime}`);
+            }
           }
         }
       }
@@ -128,6 +147,13 @@ async function main() {
       `⚠️ Bot start failed, can you log in through wechat on the web?: ${e}`
     );
   }
+}
+
+function parseCustomDateString(dateString: string) {
+  const [datePart, timePart] = dateString.split(" ");
+  const [year, month, day] = datePart.split(".");
+  const [hour, minute] = timePart.split(".");
+  return new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day), Number.parseInt(hour), Number.parseInt(minute));
 }
 
 // 修改 readExcel 函数的返回类型，并返回解析后的数据数组
