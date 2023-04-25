@@ -6,10 +6,11 @@ import { config } from "./config.js";
 import schedule from 'node-schedule';
 import pkg from 'exceljs';
 const { Workbook } = pkg;
-import XLSX from 'xlsx';
 import fs from 'fs';
-import path from 'path';
 import ExcelJS, { Row } from 'exceljs';
+import axios from 'axios';
+import sharp from 'sharp';
+
 
 
 const chatGPTBot = new ChatGPTBot();
@@ -21,6 +22,7 @@ const bot = WechatyBuilder.build({
     uos: true
   }
 });
+
 // send group message
 async function sendScheduledMessageToGroup(
   groupName: string,
@@ -38,6 +40,7 @@ async function sendScheduledMessageToGroup(
   const fileBox = FileBox.fromFile(imgPath);
   targetGroup.say(fileBox);
 }
+
 async function main() {
   const initializedAt = Date.now()
   const groupName = '猫猫测试群';
@@ -85,8 +88,36 @@ async function main() {
     })
     .on('message', async (message: Message) => {
       const sender = message.talker();
+      const targetContactName = '谢世杰';
+      const targetGroupName = '猫猫测试群';
 
-      
+      if (sender.name() === targetContactName) {
+        const messageText = message.text();
+        const regex = /<a[^>]*>([^<]*)<\/a>/i;
+        const match = messageText.match(regex);
+        const extractedUrl = match ? match[1] : '';
+        console.log(`提取到的链接: ${extractedUrl}`);
+        const urlPattern = /^https:\/\/coder-xieshijie-img-1253784930\.cos\.ap-beijing\.myqcloud\.com/;
+
+        if (urlPattern.test(extractedUrl)) {
+          const response = await axios.get(extractedUrl, { responseType: 'arraybuffer' });
+          const data = new Buffer(response.data);
+          const excelData = await readExcel(data); // 使用 readExcel 函数的返回值
+          console.log(`excelData: ${excelData}`);
+
+          for (const row of excelData) {
+            const { sendTime, sendText, imagePath } = row;
+            console.log(`sendTime: ${sendTime}, sendText: ${sendText}, imagePath: ${imagePath}`);
+            const targetDate = new Date(sendTime);
+        
+            schedule.scheduleJob(targetDate, (() => {
+              return () => {
+                sendScheduledMessageToGroup(targetGroupName, sendText, imagePath);
+              };
+            })());
+          }
+        }
+      }
     })
     ;
 
@@ -97,6 +128,47 @@ async function main() {
       `⚠️ Bot start failed, can you log in through wechat on the web?: ${e}`
     );
   }
+}
+
+// 修改 readExcel 函数的返回类型，并返回解析后的数据数组
+async function readExcel(data: Buffer): Promise<Array<{ sendTime: string, sendText: string, imagePath: string }>> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(data);
+
+  const worksheet = workbook.getWorksheet(1);
+  const outputDir = '/Users/xieshijie/Desktop/down';
+  const result: Array<{ sendTime: string, sendText: string, imagePath: string }> = [];
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
+
+  const rows: any = worksheet.getRows(2, worksheet.rowCount); // 从第二行开始，假设第一行是标题行
+  for (const row of rows) {
+    const sendTime = row.getCell(1).text;
+    const sendText = row.getCell(2).text;
+    const imageUrl = row.getCell(3).text;
+
+    console.log(`Row ${row.number}: SendTime: ${sendTime}, SendText: ${sendText}`);
+
+    if (imageUrl) {
+      try {
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data);
+        const imagePath = `${outputDir}/image_${row.number}`;
+        const outputFilePath = `${imagePath}.jpg`; // Change the file extension as needed
+        await sharp(imageBuffer).toFile(outputFilePath);
+        console.log(`Image saved at ${outputFilePath}`);
+
+        result.push({ sendTime, sendText, imagePath: outputFilePath });
+      } catch (error) {
+        console.error(`Error downloading image at row ${row.number}:`);
+      }
+    }
+  }
+  console.log(`excel parse finished! result: ${result}`);
+
+  return result;
 }
 
 main();
